@@ -44,7 +44,7 @@ end
 
 class Room
 	
-	def initialize(num)		#should be a loop to initialize the number of the rooms, also need 3 nearby rooms
+	def initialize(num)		
 		@room_number = num
 		@nearby_room = Array.new(3)
 		@null_room_num = 0
@@ -137,6 +137,7 @@ class Cave
 		@bats_indexes = Array.new(3)	#keep track of 3 bats
 		@pit_indexes = Array.new(3)
 		@wumpus_index = -1 			#to keep track where the wumpus is
+		@game_hint_index = -1
 		puts "please input player name: "
 		name = gets
 		@my_player = Player.new( name)
@@ -171,27 +172,24 @@ class Cave
 		for i in 0..2 do		#allocate a bat and a pit each time
 			bat_room_num = hazards_rooms.sample
 			@bats_indexes[ i ] = bat_room_num #hazards_rooms[ bat_room_num]
-			#puts "batroom is, #{bat_room_num}"
 			@rooms[ bat_room_num ].add_hazard("bat")    #batroomnum might have issues
 			hazards_rooms.delete_at(hazards_rooms.index( bat_room_num) )
 			pit_room_num = hazards_rooms.sample
 			@pit_indexes[ i ] = pit_room_num #hazards_rooms[ pit_room_num ]
-			#puts "pitroom is , #{pit_room_num}"
 			@rooms[ pit_room_num ].add_pit()
-			print "bat is at, #{bat_room_num}, pit is at, #{pit_room_num}"
 			hazards_rooms.delete_at(hazards_rooms.index( pit_room_num) )
 		end
 		@wumpus_index = hazards_rooms.sample
-		puts "wumpus is at, #{@wumpus_index}"
 		@rooms[ @wumpus_index ].add_hazard("wumpus")
-		#allocate wumpus room		
+		hazards_rooms.delete_at(hazards_rooms.index( @wumpus_index) )
+		@game_hint_index = hazards_rooms.sample
+		#allocate wumpus room and lucky god room	
 	end	
 	
 	def find_start_room()   #find a safe room to start the game
 		all_room_num = Array(0..19)
 		
 		for i in 0..2 do			
-			#puts "deleting roomnum, #{@bats_indexes[ i ]},#{@pit_indexes[ i ]}"
 			all_room_num = all_room_num - [ @bats_indexes[ i ] ]
 			all_room_num= all_room_num - [ @pit_indexes[ i ] ]
 		end
@@ -214,9 +212,9 @@ class Cave
 				@wumpus_killed = true
 			else
 				puts "------------\nsorry, no wumpus in the room."	
+				puts "arrow num #{@my_player.arrow_num()}"
 			end		
 			@my_player.shoot_arrow()
-			puts "arrow num #{@my_player.arrow_num()}"
 		else
 			@out_of_arrow = true
 			puts "you have run out of arrows, u lose the game"	
@@ -233,11 +231,9 @@ class Cave
 		end	
 		available_rooms = available_rooms - [ @wumpus_index ]
 		new_wumpus_room = available_rooms.sample
-		puts "new wumpus room is, #{new_wumpus_room}"
 		@wumpus_index = new_wumpus_room
 		available_rooms.delete_at(available_rooms.index( new_wumpus_room) )
 		new_bat_room = available_rooms.sample
-		puts "new bat room is, #{new_bat_room}"
 		@bats_indexes[ 1 ] = new_bat_room
 
 	end	
@@ -292,11 +288,18 @@ class Cave
 		return false
 	end
 
+	def meet_hint()
+		if @rooms[ @game_hint_index ]== @my_player.get_cur_room()
+			puts "---------\nyou met your lucky god, he told you that the wumpus is in room ,#{@wumpus_index}"
+		end	
+	end	
+
 	def	check_cur_status()      #it should also tell people if it is next to wumpus or pit
-		#puts "cur room is ,#{@my_player.get_cur_room}"   #this one might have issues, check
 		killed_by_pit = meet_pits()
 		killed_by_wumpus = meet_wumpus()
 		taken_by_bats = meet_bats()
+		meet_hint()   #hint to tell the user where the wumpus is
+		#game_hint_index  check if meeting the location of game hint, if so, tell the player where the wumpus is
 		unless taken_by_bats  or killed_by_pit or killed_by_wumpus #if not taken by bats
 			@my_player.get_cur_room().has_ajacent_hazard()
 			@my_player.get_cur_room().has_ajacent_pit()		
@@ -327,11 +330,8 @@ def start_game()
 	my_cave.find_start_room()
 	puts "--------\nhint:in the first round, u will not be notified any information about your neighbor rooms"
 	until my_cave.player_is_killed() or my_cave.wumpus_is_killed() or my_cave.have_no_arrows()
-		#add another condition to end the game, if the arrows ran out, then the game is end
-
-		#puts "testing, #{my_cave.get_player().get_cur_room()}"
 		exit_rooms = my_cave.get_player().get_cur_room().get_nearby_rooms()
-		print "Exits go to: #{ exit_rooms[0].get_room_num() }, #{ exit_rooms[1].get_room_num()}, #{ exit_rooms[2].get_room_num() }"
+		print "Exits go to: #{ exit_rooms[0].get_room_num() }, #{ exit_rooms[1].get_room_num()}, #{ exit_rooms[2].get_room_num() }\n"
 		#set an array of getroom numbers, forcing the use to choose rooms from here
 		exit_rooms_num = Array[exit_rooms[0].get_room_num(), exit_rooms[1].get_room_num(), exit_rooms[2].get_room_num()]
 		puts "-----------\nWhat do you want to do? (m)ove or (s)hoot?"
